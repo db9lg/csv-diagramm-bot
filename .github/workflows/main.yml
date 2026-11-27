@@ -1,1 +1,22 @@
+name: Täglichen CSV-Download ausführen
+
+on:
+  schedule:
+    # Läuft täglich um 06:00 Uhr UTC (7:00 Uhr MEZ / 8:00 Uhr MESZ)
+    - cron: '0 6 * * *'
+  # Erlaubt dir einen manuellen Start zum sofortigen Testen
+  workflow_dispatch:
+
+jobs:
+  download-csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: CSV-Datei herunterladen
+        run: curl -fSL "https://wesis.bkg.bund.de" -o clt_f107_nf_final.txt
+
+      - name: Prüfen ob Download geklappt hat
+        run: |
+          ls -lh clt_f107_nf_final.txt
+          head -n 5 clt_f107_nf_final.txt
 
