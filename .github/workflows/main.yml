@@ -1,22 +1,39 @@
-name: Täglichen CSV-Download ausführen
+name: Täglichen CSV-Download und Diagramm ausführen
 
 on:
   schedule:
-    # Läuft täglich um 06:00 Uhr UTC (7:00 Uhr MEZ / 8:00 Uhr MESZ)
-    - cron: '0 6 * * *'
-  # Erlaubt dir einen manuellen Start zum sofortigen Testen
+    # Läuft täglich um 13:00 Uhr UTC (14:00 Uhr MEZ / 15:00 Uhr MESZ)
+    # Tipp: Nach 12:00 UTC liegt der neue Noonflux vom aktuellen Tag vor
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 jobs:
-  download-csv:
+  build-chart:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Dein Python-Skript aus dem Repository laden
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # 2. CSV-Datei vom Wettzell-Server herunterladen
       - name: CSV-Datei herunterladen
         run: curl -fSL "https://wesis.bkg.bund.de" -o clt_f107_nf_final.txt
 
-      - name: Prüfen ob Download geklappt hat
-        run: |
-          ls -lh clt_f107_nf_final.txt
-          head -n 5 clt_f107_nf_final.txt
+      # 3. Python einrichten & Pakete installieren
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
+      - name: Diagramm generieren
+        run: |
+          pip install pandas matplotlib
+          python create_chart.py
+
+      # 4. Bild kurzzeitig als Artifact speichern, damit du es im Browser prüfen kannst
+      - name: Diagramm zur Vorschau bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: sfu-diagramm
+          path: sfu_30tage.png
