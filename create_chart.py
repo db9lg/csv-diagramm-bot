@@ -20,10 +20,13 @@ with open("clt_f107_nf_final.txt", "r", encoding="latin1") as f:
 df = pd.DataFrame(zeilen)
 
 # 2. Datum und Zahlenwerte sicher umwandeln
-df["date"] = pd.to_datetime(df["date"], errors="coerce")
+df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
 df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
 df["sfu"] = pd.to_numeric(df["sfu"], errors="coerce")
 df = df.dropna(subset=["date", "sfu"])
+
+if df.empty:
+    raise ValueError("Keine gültigen Datenzeilen in der Datei gefunden!")
 
 # 3. Pro Tag einen Wert wählen (bevorzugt 12 Uhr UTC Noonflux)
 df["is_noon"] = (df["hour"] == 12).astype(int)
