@@ -258,6 +258,44 @@ plt.tight_layout(rect=[0, 0.03, 1, 1])
 plt.savefig("sfu_zyklen_1947.png")
 plt.close(fig3)
 
+# ==============================================================================
+# 3b. ECHTE IONOSONDEN-MESSWERTE (DOURBES & JULIUSRUH) AUSLESEN
+# ==============================================================================
+import json
+
+ionosonden_html = ""
+try:
+    with open("ionosonden.json", "r", encoding="utf-8") as f:
+        sonden_daten = json.load(f)
+
+    # Wir suchen Dourbes (DB049) und Juliusruh (JR055)
+    gesuchte_codes = {"DB049": "Dourbes (BE)", "JR055": "Juliusruh (Rügen)"}
+    gefundene_sonden = []
+
+    for eintrag in sonden_daten:
+        st_info = eintrag.get("station", {})
+        code = st_info.get("code", "")
+        if code in gesuchte_codes:
+            mufd = eintrag.get("mufd")   # MUF(3000)F2 in MHz
+            fof2 = eintrag.get("fof2")   # Kritische Frequenz foF2 in MHz
+            zeit = eintrag.get("time", "")
+            if mufd is not None and fof2 is not None:
+                zeit_kurz = zeit[11:16] + " UTC" if len(zeit) >= 16 else ""
+                gefundene_sonden.append(
+                    f'<div class="status-item"><strong>Ionosonde {gesuchte_codes.get(code)}:</strong> '
+                    f'MUF(3000) = <strong>{float(mufd):.1f} MHz</strong> '
+                    f'(f₀F₂: {float(fof2):.1f} MHz, {zeit_kurz})</div>'
+                )
+
+    if gefundene_sonden:
+        ionosonden_html = "\n    ".join(gefundene_sonden)
+    else:
+        ionosonden_html = '<div class="status-item"><strong>Ionosonden (DB049/JR055):</strong> Aktuell keine Live-Daten</div>'
+
+except Exception as e:
+    print("Hinweis Ionosonden:", e)
+    ionosonden_html = ""
+
 # DIAGRAMM 4: Weltraumwetter der letzten 30 Tage (Sonnenflecken SN & Ap-Index)
 df_gfz_valid = df_gfz[(df_gfz["sn"] >= 0) & (df_gfz["ap"] >= 0)].sort_values("date")
 letztes_gfz = df_gfz_valid["date"].max()
@@ -467,6 +505,7 @@ html_inhalt = f"""<!DOCTYPE html>
     <div class="status-item"><strong>Aktueller F10.7 ({letztes_datum.strftime('%d.%m.')}):</strong> {aktueller_sfu:.1f} sfu</div>
     <div class="status-item"><strong>Sonnenflecken (SN):</strong> {aktueller_sn}</div>
     <div class="status-item"><strong>Ap-Index:</strong> {aktueller_ap}</div>
+    {ionosonden_html}
   </div>
 
   <div class="band-grid">
@@ -491,6 +530,7 @@ html_inhalt = f"""<!DOCTYPE html>
 
   <footer>
     Quellen: Bundesamt für Kartographie und Geodäsie (BKG Wettzell) &amp; GFZ Helmholtz-Zentrum Potsdam | Aktualisierung täglich via GitHub Actions
+    KC2G / GIRO Ionosonden (Dourbes & Juliusruh)
   </footer>
 </body>
 </html>
