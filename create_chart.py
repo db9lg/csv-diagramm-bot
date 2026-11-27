@@ -179,4 +179,109 @@ fig2.text(
 
 plt.savefig("sfu_gesamt_auswertung.png", bbox_inches="tight")
 plt.close(fig2)
+
+# ==============================================================================
+# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Ottawa / Penticton)
+# ==============================================================================
+import urllib.request
+
+# 1. Historische Tageswerte 1947 - 2018 von NOAA NCEI laden
+url_noaa = "https://noaa.gov"
+hist_rows = []
+
+try:
+    req = urllib.request.Request(url_noaa, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        for raw_line in resp.read().decode("latin1").splitlines():
+            parts = raw_line.strip().split()
+            if len(parts) >= 4 and parts[0].isdigit() and len(parts[0]) == 4:
+                y, m, d, val = parts[0], parts[1], parts[2], parts[3]
+                try:
+                    sfu_val = float(val)
+                    if 50 < sfu_val < 600:
+                        hist_rows.append({"date": f"{y}-{m.zfill(2)}-{d.zfill(2)}", "sfu": sfu_val})
+                except ValueError:
+                    pass
+except Exception as e:
+    print("Hinweis NOAA-Archiv:", e)
+
+# 2. Aktuelle Werte ab 2004 von Space Weather Canada (penticton_1947.txt) einlesen
+try:
+    with open("penticton_1947.txt", "r", encoding="latin1") as f:
+        for line in f:
+            parts = line.strip().split()
+            # Format: YYYYMMDD HHMMSS julian carrington obs_flux adj_flux ursi_flux
+            if len(parts) >= 6 and parts[0].isdigit() and len(parts[0]) == 8:
+                d_str = parts[0]
+                datum_fmt = f"{d_str[:4]}-{d_str[4:6]}-{d_str[6:8]}"
+                try:
+                    sfu_val = float(parts[5])  # adjusted flux
+                    if 50 < sfu_val < 600:
+                        hist_rows.append({"date": datum_fmt, "sfu": sfu_val})
+                except ValueError:
+                    pass
+except Exception as e:
+    print("Hinweis SpaceWeather Canada:", e)
+
+# 3. Eigene Wettzell-Tageswerte (df_daily) als tagesaktuellste Daten mit anhängen
+df_wettzell_hist = df_daily[["date", "sfu"]].copy()
+df_wettzell_hist["date"] = df_wettzell_hist["date"].dt.strftime("%Y-%m-%d")
+
+df_all_hist = pd.concat([pd.DataFrame(hist_rows), df_wettzell_hist], ignore_index=True)
+df_all_hist["date"] = pd.to_datetime(df_all_hist["date"], errors="coerce")
+df_all_hist = df_all_hist.dropna(subset=["date", "sfu"])
+
+# Tagesmittel bilden (Doppelungen an Überlappungsjahren sauber mitteln)
+df_h_daily = df_all_hist.groupby("date", as_index=False)["sfu"].mean().sort_values("date").reset_index(drop=True)
+df_h_daily["ma81"] = df_h_daily["sfu"].rolling(window=81, min_periods=30, center=True).mean()
+df_h_daily["ma365"] = df_h_daily["sfu"].rolling(window=365, min_periods=150, center=True).mean()
+
+fig3, ax3 = plt.subplots(figsize=(13, 5.5), dpi=160)
+
+ax3.plot(df_h_daily["date"], df_h_daily["ma81"], color="#7fb3d5", linewidth=0.9, label="81-Tage-Mittel (F10.7A)")
+ax3.plot(df_h_daily["date"], df_h_daily["ma365"], color="#1f4e78", linewidth=2.0, label="365-Tage-Mittel (Zyklusverlauf)")
+
+zyklen = [
+    ("Zyklus 18", "1947-11-01", 255),
+    ("Zyklus 19\n(Rekord)", "1958-03-01", 285),
+    ("Zyklus 20", "1968-11-01", 180),
+    ("Zyklus 21", "1979-12-01", 230),
+    ("Zyklus 22", "1989-11-01", 235),
+    ("Zyklus 23", "2000-07-01", 205),
+    ("Zyklus 24", "2014-04-01", 165),
+    ("Zyklus 25", "2024-10-01", 215),
+]
+
+for name, datum_str, y_pos in zyklen:
+    ax3.text(
+        pd.to_datetime(datum_str), y_pos, name,
+        ha="center", va="bottom", fontsize=8.5, fontweight="bold", color="#8b0000",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#d0d0d0", alpha=0.85)
+    )
+
+letztes_hist = df_h_daily["date"].max()
+ax3.set_title(
+    f"Historischer Solarer Radiofluss F10.7 (1947 – {letztes_hist.strftime('%Y')}): Sonnenzyklen 18 bis 25",
+    fontsize=12.5, fontweight="bold", pad=12
+)
+ax3.set_ylabel("Adjusted Solar Flux [sfu]", fontsize=10)
+ax3.set_ylim(55, 325)
+ax3.xaxis.set_major_locator(mdates.YearLocator(5))
+ax3.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+ax3.grid(True, linestyle="--", alpha=0.35)
+ax3.spines["top"].set_visible(False)
+ax3.spines["right"].set_visible(False)
+ax3.legend(loc="upper right", fontsize=9, framealpha=0.9)
+
+fig3.text(
+    0.01, 0.01,
+    "Quellen: NOAA NCEI / DRAO Ottawa & Penticton (1947–heute) & BKG Observatorium Wettzell – Adjusted F10.7 Flux",
+    fontsize=8, color="#555555"
+)
+
+plt.tight_layout(rect=[0, 0.03, 1, 1])
+plt.savefig("sfu_zyklen_1947.png")
+plt.close(fig3)
+print("Historisches Zyklus-Diagramm erstellt!")
+
 print("Beide Diagramme wurden erfolgreich erstellt!")
