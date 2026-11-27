@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-dateiname = "daten.csv"  # <-- Hier deinen echten Dateinamen eintragen!
+dateiname = "clt_f107_nf_final.txt"  # <-- Hier deinen echten Dateinamen eintragen!
 
 print("=== ERSTE 15 ZEILEN DER DATEI ===")
 with open(dateiname, "r", encoding="latin1") as f:
