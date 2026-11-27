@@ -179,4 +179,71 @@ fig2.text(
 
 plt.savefig("sfu_gesamt_auswertung.png", bbox_inches="tight")
 plt.close(fig2)
+
+# ==============================================================================
+# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Penticton / Ottawa)
+# ==============================================================================
+df_hist = pd.read_csv("penticton_1947.csv")
+
+# Spaltennamen bereinigen (LASP nutzt z.B. "time (yyyy-MM-dd'T'HH:mm:ss)" und "adjusted_flux (sfu)")
+col_time = df_hist.columns.pop(0) if False else [c for c in df_hist.columns if "time" in c.lower()].pop(0)
+col_adj = [c for c in df_hist.columns if "adjusted" in c.lower()].pop(0)
+
+df_hist["date"] = pd.to_datetime(df_hist[col_time], errors="coerce", utc=True).dt.tz_localize(None)
+df_hist["sfu"] = pd.to_numeric(df_hist[col_adj], errors="coerce")
+df_hist = df_hist[(df_hist["sfu"] > 50) & (df_hist["sfu"] < 600)].dropna(subset=["date", "sfu"])
+
+# Tagesmittel und geglättetes 81-Tage-Mittel (F10.7A) & 13-Monats-Glättung
+df_h_daily = df_hist.groupby("date", as_index=False)["sfu"].mean().sort_values("date").reset_index(drop=True)
+df_h_daily["ma81"] = df_h_daily["sfu"].rolling(window=81, min_periods=30, center=True).mean()
+df_h_daily["ma365"] = df_h_daily["sfu"].rolling(window=365, min_periods=150, center=True).mean()
+
+fig3, ax3 = plt.subplots(figsize=(13, 5.5), dpi=160)
+
+ax3.plot(df_h_daily["date"], df_h_daily["ma81"], color="#7fb3d5", linewidth=0.9, label="81-Tage-Mittel (F10.7A)")
+ax3.plot(df_h_daily["date"], df_h_daily["ma365"], color="#1f4e78", linewidth=2.0, label="365-Tage-Mittel (Zyklusverlauf)")
+
+# Sonnenzyklen 18 bis 25 grob an ihren Maxima beschriften
+zyklen = [
+    ("Zyklus 18", "1947-11-01", 255),
+    ("Zyklus 19\n(Rekord)", "1958-03-01", 285),
+    ("Zyklus 20", "1968-11-01", 180),
+    ("Zyklus 21", "1979-12-01", 230),
+    ("Zyklus 22", "1989-11-01", 235),
+    ("Zyklus 23", "2000-07-01", 205),
+    ("Zyklus 24", "2014-04-01", 165),
+    ("Zyklus 25", "2024-10-01", 215),
+]
+
+for name, datum_str, y_pos in zyklen:
+    ax3.text(
+        pd.to_datetime(datum_str), y_pos, name,
+        ha="center", va="bottom", fontsize=8.5, fontweight="bold", color="#8b0000",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#d0d0d0", alpha=0.85)
+    )
+
+letztes_hist = df_h_daily["date"].max()
+ax3.set_title(
+    f"Historischer Solarer Radiofluss F10.7 (1947 – {letztes_hist.strftime('%Y')}): Sonnenzyklen 18 bis 25",
+    fontsize=12.5, fontweight="bold", pad=12
+)
+ax3.set_ylabel("Adjusted Solar Flux [sfu]", fontsize=10)
+ax3.set_ylim(55, 325)
+ax3.xaxis.set_major_locator(mdates.YearLocator(5))
+ax3.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+ax3.grid(True, linestyle="--", alpha=0.35)
+ax3.spines["top"].set_visible(False)
+ax3.spines["right"].set_visible(False)
+ax3.legend(loc="upper right", fontsize=9, framealpha=0.9)
+
+fig3.text(
+    0.01, 0.01,
+    "Quelle: Dominion Radio Astrophysical Observatory (Ottawa/Penticton) via LASP LISIRD – Adjusted F10.7 Flux",
+    fontsize=8, color="#555555"
+)
+
+plt.tight_layout(rect=[0, 0.03, 1, 1])
+plt.savefig("sfu_zyklen_1947.png")
+plt.close(fig3)
+print("Historisches Zyklus-Diagramm erstellt!")
 print("Beide Diagramme wurden erfolgreich erstellt!")
