@@ -2,8 +2,10 @@ name: Täglichen CSV-Download und Diagramm ausführen
 
 on:
   schedule:
-    # Läuft täglich um 13:00 Uhr UTC (14:00 Uhr MEZ / 15:00 Uhr MESZ)
-    - cron: '0 13 * * *'
+    # Läuft täglich um 11:00 Uhr UTC (12:00 Uhr MEZ / 13:00 Uhr MESZ)
+    - cron: '0 11 * * *'
+    # Läuft täglich um 17:00 Uhr UTC (18:00 Uhr MEZ / 19:00 Uhr MESZ)
+    - cron: '0 17 * * *'
   workflow_dispatch:
 
 permissions:
