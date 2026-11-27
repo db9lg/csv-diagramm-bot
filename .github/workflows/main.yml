@@ -3,39 +3,39 @@ name: Täglichen CSV-Download und Diagramm ausführen
 on:
   schedule:
     # Läuft täglich um 13:00 Uhr UTC (14:00 Uhr MEZ / 15:00 Uhr MESZ)
-    # Tipp: Nach 12:00 UTC liegt der neue Noonflux vom aktuellen Tag vor
     - cron: '0 13 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-chart:
+  build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Dein Python-Skript aus dem Repository laden
       - name: Repository auschecken
         uses: actions/checkout@v4
 
-      # 2. CSV-Datei vom Wettzell-Server herunterladen
       - name: CSV-Datei herunterladen
         run: curl -fSL "https://wesis.bkg.bund.de/clt_f107_nf_final.txt" -o clt_f107_nf_final.txt
 
-      # 3. Python einrichten & Pakete installieren
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Diagramm generieren
+      - name: Diagramme generieren
         run: |
           pip install pandas matplotlib
           python create_chart.py
 
-      # 4. Bild kurzzeitig als Artifact speichern, damit du es im Browser prüfen kannst
-      - name: Diagramme zur Vorschau bereitstellen
-        uses: actions/upload-artifact@v4
+      - name: Diagramme auf GitHub Pages veröffentlichen
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          name: sfu-diagramme
-          path: |
-            sfu_30tage.png
-            sfu_gesamt_auswertung.png
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          keep_files: false
+          enable_jekyll: false
+          allow_empty_commit: true
+          commit_message: "Update Solar Flux Diagramme"
