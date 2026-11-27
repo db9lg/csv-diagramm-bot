@@ -182,44 +182,39 @@ plt.close(fig2)
 print("Beide Diagramme wurden erfolgreich erstellt!")
 
 # ==============================================================================
-# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Ottawa / Penticton / GFZ)
+# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (GFZ Potsdam / Penticton)
 # ==============================================================================
-import urllib.request
-
 hist_rows = []
 
-# 1. Komplettes Langzeitarchiv 1947 - heute vom GFZ Helmholtz-Zentrum Potsdam laden
-# Format: YYYY MM DD ... F10.7_obs F10.7_adj ...
-url_gfz = (
-    "https://gfz.de"
-    "Kp_ap_Ap_SN_F107_since_1932.txt"
-)
+with open("gfz_since_1932.txt", "r", encoding="latin1") as f:
+    for raw_line in f:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        teile = line.split()
+        # Spalten im GFZ-Format: 0=YYYY, 1=MM, 2=DD, ..., 25=F10.7_obs, 26=F10.7_adj
+        if len(teile) >= 27:
+            y_str = teile.pop(0)
+            m_str = teile.pop(0)
+            d_str = teile.pop(0)
+            if y_str.isdigit() and int(y_str) >= 1947:
+                # Nach 3x pop(0) liegt Spalte 26 (F10.7_adj) jetzt an Position 23
+                for _ in range(23):
+                    teile.pop(0)
+                val_str = teile.pop(0)
+                try:
+                    sfu_val = float(val_str)
+                    if 50 < sfu_val < 600:
+                        hist_rows.append({
+                            "date": f"{y_str}-{m_str.zfill(2)}-{d_str.zfill(2)}",
+                            "sfu": sfu_val
+                        })
+                except ValueError:
+                    pass
 
-try:
-    req = urllib.request.Request(url_gfz, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        for raw_line in resp.read().decode("latin1").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split()
-            # Spalten: 0=YYYY, 1=MM, 2=DD, ..., 25=F10.7_obs, 26=F10.7_adj
-            if len(parts) >= 27 and parts.isdigit():
-                y = int(parts)
-                if y >= 1947:
-                    m = parts.zfill(2)
-                    d = parts.zfill(2)
-                    try:
-                        sfu_val = float(parts)  # F10.7 adjusted
-                        if 50 < sfu_val < 600:
-                            hist_rows.append({"date": f"{y}-{m}-{d}", "sfu": sfu_val})
-                    except ValueError:
-                        pass
-    print(f"GFZ-Langzeitdaten geladen: {len(hist_rows)} Tage ab 1947.")
-except Exception as e:
-    print("Fehler beim Laden der GFZ-Daten:", e)
+print(f"GFZ-Langzeitdaten eingelesen: {len(hist_rows)} Tage ab 1947.")
 
-# 2. Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
+# Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
 df_wettzell_hist = df_daily[["date", "sfu"]].copy()
 df_wettzell_hist["date"] = df_wettzell_hist["date"].dt.strftime("%Y-%m-%d")
 
