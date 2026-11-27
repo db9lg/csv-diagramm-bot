@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar Flux Index (F10.7) – Observatorium Wettzell</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #222;
+      background-color: #f8f9fa;
+    }
+    h1 {
+      font-size: 1.6rem;
+      color: #1f4e78;
+      margin-bottom: 0.3rem;
+    }
+    p.subtitle {
+      color: #555;
+      margin-top: 0;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .card img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    footer {
+      font-size: 0.85rem;
+      color: #666;
+      text-align: center;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Solarer Radiofluss F10.7 (2800 MHz)</h1>
+  <p class="subtitle">Automatisch aktualisierte Auswertung – Geodätisches Observatorium Wettzell (BKG)</p>
+
+  <div class="card">
+    <img src="sfu_30tage.png" alt="Solar Flux F10.7 der letzten 30 Tage">
+  </div>
+
+  <div class="card">
+    <img src="sfu_gesamt_auswertung.png" alt="Solar Flux F10.7 Gesamtauswertung seit 01.01.2024">
+  </div>
+
+  <footer>
+    Datenquelle: Bundesamt für Kartographie und Geodäsie (BKG) – WESIS F10.7 Final Noonflux | Aktualisierung täglich via GitHub Actions
+  </footer>
+</body>
+</html>
