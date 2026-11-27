@@ -20,7 +20,7 @@ jobs:
       - name: CSV-Datei herunterladen
         run: |
           curl -fSL "https://wesis.bkg.bund.de/clt_f107_nf_final.txt" -o clt_f107_nf_final.txt
-          curl -fSL "https://colorado.edu" -o penticton_1947.csv
+          curl -fSL "https://spaceweather.gc.ca" -o penticton_1947.txt
 
       - name: Python einrichten
         uses: actions/setup-python@v5
