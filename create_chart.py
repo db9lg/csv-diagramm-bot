@@ -505,6 +505,7 @@ html_inhalt = f"""<!DOCTYPE html>
     <div class="status-item"><strong>Aktueller F10.7 ({letztes_datum.strftime('%d.%m.')}):</strong> {aktueller_sfu:.1f} sfu</div>
     <div class="status-item"><strong>Sonnenflecken (SN):</strong> {aktueller_sn}</div>
     <div class="status-item"><strong>Ap-Index:</strong> {aktueller_ap}</div>
+    {ionosonden_html}
   </div>
 
   <div class="band-grid">
@@ -529,6 +530,7 @@ html_inhalt = f"""<!DOCTYPE html>
 
   <footer>
     Quellen: Bundesamt für Kartographie und Geodäsie (BKG Wettzell) &amp; GFZ Helmholtz-Zentrum Potsdam | Aktualisierung täglich via GitHub Actions
+    KC2G / GIRO Ionosonden (Dourbes & Juliusruh)
   </footer>
 </body>
 </html>
