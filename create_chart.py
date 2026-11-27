@@ -182,68 +182,50 @@ plt.close(fig2)
 print("Beide Diagramme wurden erfolgreich erstellt!")
 
 # ==============================================================================
-# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Ottawa / Penticton)
+# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Ottawa / Penticton / GFZ)
 # ==============================================================================
 import urllib.request
 
 hist_rows = []
 
-# 1. Historische Tageswerte 1947 - 2018 von NOAA NCEI laden
-url_noaa = (
-    "https://noaa.gov"
-    "solar-features/solar-radio/noontime-flux/penticton/"
-    "penticton_adjusted/listings/"
-    "listing_drao_noontime-flux-adjusted_daily.txt"
+# 1. Komplettes Langzeitarchiv 1947 - heute vom GFZ Helmholtz-Zentrum Potsdam laden
+# Format: YYYY MM DD ... F10.7_obs F10.7_adj ...
+url_gfz = (
+    "https://gfz.de"
+    "Kp_ap_Ap_SN_F107_since_1932.txt"
 )
 
 try:
-    req = urllib.request.Request(url_noaa, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=25) as resp:
+    req = urllib.request.Request(url_gfz, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
         for raw_line in resp.read().decode("latin1").splitlines():
-            parts = raw_line.strip().split()
-            if len(parts) >= 4 and parts[0].isdigit() and len(parts[0]) == 4:
-                y, m, d, val = parts[0], parts[1], parts[2], parts[3]
-                try:
-                    sfu_val = float(val)
-                    if 50 < sfu_val < 600:
-                        hist_rows.append({"date": f"{y}-{m.zfill(2)}-{d.zfill(2)}", "sfu": sfu_val})
-                except ValueError:
-                    pass
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            # Spalten: 0=YYYY, 1=MM, 2=DD, ..., 25=F10.7_obs, 26=F10.7_adj
+            if len(parts) >= 27 and parts.isdigit():
+                y = int(parts)
+                if y >= 1947:
+                    m = parts.zfill(2)
+                    d = parts.zfill(2)
+                    try:
+                        sfu_val = float(parts)  # F10.7 adjusted
+                        if 50 < sfu_val < 600:
+                            hist_rows.append({"date": f"{y}-{m}-{d}", "sfu": sfu_val})
+                    except ValueError:
+                        pass
+    print(f"GFZ-Langzeitdaten geladen: {len(hist_rows)} Tage ab 1947.")
 except Exception as e:
-    print("Hinweis NOAA-Archiv:", e)
+    print("Fehler beim Laden der GFZ-Daten:", e)
 
-# 2. Aktuelle Werte ab 2004 von Space Weather Canada laden
-url_canada = (
-    "https://spaceweather.gc.ca"
-    "solar_flux_data/daily_flux_values/fluxtable.txt"
-)
-
-try:
-    req2 = urllib.request.Request(url_canada, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req2, timeout=25) as resp2:
-        for line in resp2.read().decode("latin1").splitlines():
-            parts = line.strip().split()
-            if len(parts) >= 6 and parts[0].isdigit() and len(parts[0]) == 8:
-                d_str = parts[0]
-                datum_fmt = f"{d_str[:4]}-{d_str[4:6]}-{d_str[6:8]}"
-                try:
-                    sfu_val = float(parts[5])
-                    if 50 < sfu_val < 600:
-                        hist_rows.append({"date": datum_fmt, "sfu": sfu_val})
-                except ValueError:
-                    pass
-except Exception as e:
-    print("Hinweis SpaceWeather Canada:", e)
-
-# 3. Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
+# 2. Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
 df_wettzell_hist = df_daily[["date", "sfu"]].copy()
 df_wettzell_hist["date"] = df_wettzell_hist["date"].dt.strftime("%Y-%m-%d")
 
 df_all_hist = pd.concat([pd.DataFrame(hist_rows), df_wettzell_hist], ignore_index=True)
 df_all_hist["date"] = pd.to_datetime(df_all_hist["date"], errors="coerce")
 df_all_hist = df_all_hist.dropna(subset=["date", "sfu"])
-
-print(f"Historische Gesamtdaten: {len(df_all_hist)} Einträge von {df_all_hist['date'].min()} bis {df_all_hist['date'].max()}")
 
 # Tagesmittel und Glättung berechnen
 df_h_daily = df_all_hist.groupby("date", as_index=False)["sfu"].mean().sort_values("date").reset_index(drop=True)
@@ -289,7 +271,7 @@ ax3.legend(loc="upper right", fontsize=9, framealpha=0.9)
 
 fig3.text(
     0.01, 0.01,
-    "Quellen: NOAA NCEI / DRAO Ottawa & Penticton (1947–heute) & BKG Observatorium Wettzell – Adjusted F10.7 Flux",
+    "Quellen: GFZ Helmholtz-Zentrum Potsdam / DRAO Ottawa & Penticton (1947–heute) & BKG Observatorium Wettzell – Adjusted F10.7 Flux",
     fontsize=8, color="#555555"
 )
 
