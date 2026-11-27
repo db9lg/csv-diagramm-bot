@@ -303,7 +303,67 @@ plt.tight_layout(rect=[0, 0.03, 1, 1])
 plt.savefig("weltraumwetter_30tage.png")
 plt.close(fig4)
 
-# 3. index.html mit Zeitstempel & Tageswerten erzeugen
+# ==============================================================================
+# 3. BAND-PROGNOSE (10m - 80m) AUS F10.7 & AP BERECHNEN
+# ==============================================================================
+def bewerte_baender(sfu, ap):
+    # High-Bands (10m / 12m) - brauchen hohen F10.7 und ruhiges Erdmagnetfeld
+    if ap >= 30:
+        b10 = ("Gestört / Closed", "#f8d7da", "#842029", "Geomagnetischer Sturm drückt MUF stark")
+    elif sfu >= 140 and ap < 15:
+        b10 = ("Sehr gut (DX)", "#d1e7dd", "#0f5132", "Weltweite Tag-Öffnungen auf 10m & 12m")
+    elif sfu >= 105 and ap < 22:
+        b10 = ("Mittel / Lokal", "#fff3cd", "#664d03", "Sporadische Öffnungen Richtung Süden")
+    else:
+        b10 = ("Schwach / Zu", "#e2e3e5", "#41464b", "F10.7 zu niedrig für F2-Reflexion auf 10m")
+
+    # Upper Mid-Bands (15m / 17m)
+    if ap >= 35:
+        b15 = ("Gestört", "#f8d7da", "#842029", "Starke Dämpfung durch Sturm")
+    elif sfu >= 110 and ap < 20:
+        b15 = ("Sehr gut (DX)", "#d1e7dd", "#0f5132", "Stabile DX-Bedingungen tagsüber")
+    elif sfu >= 85 and ap < 28:
+        b15 = ("Gut", "#d1e7dd", "#0f5132", "Gute Europa- und DX-Verbindungen")
+    else:
+        b15 = ("Mittel", "#fff3cd", "#664d03", "Kürzere Öffnungszeiten am Nachmittag")
+
+    # Haupt-DX-Band (20m)
+    if ap >= 40:
+        b20 = ("Gestört", "#f8d7da", "#842029", "Polarpfade & DX deutlich gedämpft")
+    elif ap >= 20:
+        b20 = ("Mittel (Unruhig)", "#fff3cd", "#664d03", "Europa gut, DX leicht gestört")
+    else:
+        b20 = ("Sehr gut", "#d1e7dd", "#0f5132", "Zuverlässiges Tag- und Abendband")
+
+    # Low-Bands (40m / 80m) - profitieren von ruhigem Ap, leiden unter Sturm/Absorption
+    if ap >= 30:
+        b40 = ("Gestört / QSB", "#f8d7da", "#842029", "Erhöhte Dämpfung & Flatterfading")
+    elif ap >= 15:
+        b40 = ("Mittel", "#fff3cd", "#664d03", "Europa/DL stabil, DX unruhig")
+    else:
+        b40 = ("Sehr gut", "#d1e7dd", "#0f5132", "Ruhiges Band, gute Abend-/Nacht-DX-Chancen")
+
+    return [
+        ("10m / 12m", b10),
+        ("15m / 17m", b15),
+        ("20m", b20),
+        ("40m / 80m", b40),
+    ]
+
+baender_liste = bewerte_baender(aktueller_sfu, aktueller_ap)
+band_karten_html = ""
+for band_name, (status, bg_col, txt_col, hinweis) in baender_liste:
+    band_karten_html += f"""
+    <div style="flex: 1 1 210px; background: {bg_col}; color: {txt_col}; padding: 0.85rem 1rem; border-radius: 6px; border: 1px solid rgba(0,0,0,0.08);">
+      <div style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.85;">Band {band_name}</div>
+      <div style="font-size: 1.1rem; font-weight: bold; margin: 0.2rem 0;">{status}</div>
+      <div style="font-size: 0.85rem; line-height: 1.3;">{hinweis}</div>
+    </div>
+    """
+
+# ==============================================================================
+# 4. INDEX.HTML MIT ZEITSTEMPEL, TAGESWERTEN & BAND-PROGNOSE GENERIEREN
+# ==============================================================================
 jetzt_de = datetime.now(ZoneInfo("Europe/Berlin")).strftime("%d.%m.%Y um %H:%M Uhr (%Z)")
 
 html_inhalt = f"""<!DOCTYPE html>
@@ -339,11 +399,17 @@ html_inhalt = f"""<!DOCTYPE html>
       border-left: 4px solid #1f4e78;
       padding: 0.9rem 1.2rem;
       border-radius: 6px;
-      margin-bottom: 2rem;
+      margin-bottom: 1.2rem;
       font-size: 0.95rem;
     }}
     .status-item {{
       margin-right: 1.5rem;
+    }}
+    .band-grid {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      margin-bottom: 2rem;
     }}
     .card {{
       background: #fff;
@@ -378,6 +444,10 @@ html_inhalt = f"""<!DOCTYPE html>
     <div class="status-item"><strong>Ap-Index:</strong> {aktueller_ap}</div>
   </div>
 
+  <div class="band-grid">
+    {band_karten_html}
+  </div>
+
   <div class="card">
     <img src="sfu_30tage.png" alt="Solar Flux F10.7 der letzten 30 Tage">
   </div>
@@ -404,4 +474,4 @@ html_inhalt = f"""<!DOCTYPE html>
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_inhalt)
 
-print("Alle 4 Diagramme und die aktualisierte index.html wurden erfolgreich erstellt!")
+print("Alle 4 Diagramme, Bandprognose und index.html wurden erfolgreich erstellt!")
