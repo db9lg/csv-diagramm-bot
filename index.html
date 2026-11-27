@@ -3,25 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solar Flux Index (F10.7) – Observatorium Wettzell</title>
+  <title>Solar Flux &amp; Weltraumwetter – Observatorium Wettzell &amp; GFZ Potsdam</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      max-width: 1100px;
+      max-width: 1120px;
       margin: 2rem auto;
       padding: 0 1rem;
       color: #222;
       background-color: #f8f9fa;
     }
     h1 {
-      font-size: 1.6rem;
+      font-size: 1.65rem;
       color: #1f4e78;
       margin-bottom: 0.3rem;
     }
     p.subtitle {
       color: #555;
       margin-top: 0;
+      margin-bottom: 1.2rem;
+    }
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      background: #eef4fa;
+      border-left: 4px solid #1f4e78;
+      padding: 0.9rem 1.2rem;
+      border-radius: 6px;
       margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    .status-item {
+      margin-right: 1.5rem;
     }
     .card {
       background: #fff;
@@ -46,11 +60,22 @@
   </style>
 </head>
 <body>
-  <h1>Solarer Radiofluss F10.7 (2800 MHz)</h1>
-  <p class="subtitle">Automatisch aktualisierte Auswertung – Geodätisches Observatorium Wettzell (BKG)</p>
+  <h1>Solarer Radiofluss F10.7 &amp; Weltraumwetter</h1>
+  <p class="subtitle">Automatisch aktualisierte Auswertung – Geodätisches Observatorium Wettzell (BKG) &amp; GFZ Potsdam</p>
+
+  <div class="status-bar">
+    <div class="status-item"><strong>Letzte Aktualisierung:</strong> 27.11.2026 um 21:23 Uhr (CET)</div>
+    <div class="status-item"><strong>Aktueller F10.7 (26.11.):</strong> 87.3 sfu</div>
+    <div class="status-item"><strong>Sonnenflecken (SN):</strong> 29</div>
+    <div class="status-item"><strong>Ap-Index:</strong> 4</div>
+  </div>
 
   <div class="card">
     <img src="sfu_30tage.png" alt="Solar Flux F10.7 der letzten 30 Tage">
+  </div>
+
+  <div class="card">
+    <img src="weltraumwetter_30tage.png" alt="Sonnenfleckenzahl und Geomagnetischer Ap-Index der letzten 30 Tage">
   </div>
 
   <div class="card">
@@ -62,7 +87,7 @@
   </div>
 
   <footer>
-    Datenquelle: Bundesamt für Kartographie und Geodäsie (BKG) – WESIS F10.7 Final Noonflux | Aktualisierung täglich via GitHub Actions
+    Quellen: Bundesamt für Kartographie und Geodäsie (BKG Wettzell) &amp; GFZ Helmholtz-Zentrum Potsdam | Aktualisierung täglich via GitHub Actions
   </footer>
 </body>
 </html>

@@ -2,12 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-dateiname = "clt_f107_nf_final.txt"
-
-# 1. Datei zeilenweise einlesen
+# 1. Wettzell-Daten einlesen
 zeilen = []
-with open(dateiname, "r", encoding="latin1") as f:
+with open("clt_f107_nf_final.txt", "r", encoding="latin1") as f:
     for line in f:
         line = line.strip()
         if not line or line.startswith("#"):
@@ -26,7 +26,6 @@ df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
 df["sfu"] = pd.to_numeric(df["sfu"], errors="coerce")
 df = df.dropna(subset=["date", "sfu"])
 
-# Tageswerte bilden (bevorzugt 12 Uhr UTC Noonflux, sonst Tagesmittel)
 df_noon = df[df["hour"] == 12].groupby("date", as_index=False)["sfu"].mean()
 df_all = df.groupby("date", as_index=False)["sfu"].mean()
 df_daily = pd.merge(df_all, df_noon, on="date", how="left", suffixes=("_all", "_noon"))
@@ -34,10 +33,9 @@ df_daily["sfu"] = df_daily["sfu_noon"].fillna(df_daily["sfu_all"])
 df_daily = df_daily[["date", "sfu"]].sort_values("date").reset_index(drop=True)
 
 letztes_datum = df_daily["date"].max()
+aktueller_sfu = float(df_daily.loc[df_daily["date"] == letztes_datum, "sfu"].mean())
 
-# ==============================================================================
-# DIAGRAMM 1: Letzte 30 Tage
-# ==============================================================================
+# DIAGRAMM 1: Letzte 30 Tage (Wettzell F10.7)
 start_30 = letztes_datum - pd.Timedelta(days=29)
 df_30 = df_daily[df_daily["date"] >= start_30]
 
@@ -59,9 +57,7 @@ plt.tight_layout()
 plt.savefig("sfu_30tage.png")
 plt.close(fig1)
 
-# ==============================================================================
 # DIAGRAMM 2: Gesamtauswertung ab 01.01.2024
-# ==============================================================================
 df_2024 = df_daily[df_daily["date"] >= "2024-01-01"].copy().reset_index(drop=True)
 df_2024["ma27"] = df_2024["sfu"].rolling(window=27, min_periods=10).mean()
 df_2024["ma81"] = df_2024["sfu"].rolling(window=81, min_periods=20).mean()
@@ -69,13 +65,11 @@ df_2024["ma81"] = df_2024["sfu"].rolling(window=81, min_periods=20).mean()
 fig2 = plt.figure(figsize=(13, 8.5), dpi=160)
 gs = fig2.add_gridspec(2, 2, height_ratios=[1.25, 1], hspace=0.42, wspace=0.22)
 
-# --- Oben: Zeitverlauf + 27d / 81d Mittel ---
-ax_top = fig2.add_subplot(gs[0, :])
+ax_top = plt.subplot2grid((2, 2), (0, 0), colspan=2, fig=fig2)
 ax_top.plot(df_2024["date"], df_2024["sfu"], color="#9ecae1", linewidth=0.9, label="Tagesmittel (Mittagsfluss)")
 ax_top.plot(df_2024["date"], df_2024["ma27"], color="#1f4e78", linewidth=1.6, label="27-Tage-Mittel (1 Sonnenrotation)")
 ax_top.plot(df_2024["date"], df_2024["ma81"], color="#8b0000", linewidth=1.8, label="81-Tage-Mittel (F10.7A Index)")
 
-# Max & Min annotieren
 idx_max = df_2024["sfu"].idxmax()
 idx_min = df_2024["sfu"].idxmin()
 row_max = df_2024.loc[idx_max]
@@ -114,8 +108,7 @@ ax_top.spines["top"].set_visible(False)
 ax_top.spines["right"].set_visible(False)
 ax_top.legend(loc="upper right", fontsize=8.5, framealpha=0.9)
 
-# --- Unten links: Monatliche Durchschnittswerte ---
-ax_bl = fig2.add_subplot(gs[1, 0])
+ax_bl = plt.subplot2grid((2, 2), (1, 0), fig=fig2)
 df_2024["year"] = df_2024["date"].dt.year
 df_2024["ym"] = df_2024["date"].dt.to_period("M")
 monthly = df_2024.groupby(["year", "ym"], as_index=False)["sfu"].mean().sort_values("ym")
@@ -136,15 +129,14 @@ tick_pos = list(range(0, len(monthly), 4))
 tick_lbl = [monthly["ym"].iloc[i].strftime("%m/%y") for i in tick_pos]
 ax_bl.set_xticks(tick_pos)
 ax_bl.set_xticklabels(tick_lbl, rotation=35, fontsize=8.5)
-ax_bl.set_title(f"Monatliche Durchschnittswerte (2024 – {jahre[-1]})", fontsize=10.5, fontweight="bold", pad=10)
+ax_bl.set_title(f"Monatliche Durchschnittswerte (2024 – {max(jahre)})", fontsize=10.5, fontweight="bold", pad=10)
 ax_bl.set_ylabel("Mittlerer F10.7 [sfu]", fontsize=9.5)
 ax_bl.grid(axis="y", linestyle="--", alpha=0.35)
 ax_bl.spines["top"].set_visible(False)
 ax_bl.spines["right"].set_visible(False)
 ax_bl.legend(loc="upper right", fontsize=8, framealpha=0.9)
 
-# --- Unten rechts: Boxplot nach Jahren ---
-ax_br = fig2.add_subplot(gs[1, 1])
+ax_br = plt.subplot2grid((2, 2), (1, 1), fig=fig2)
 daten_jahre = [df_2024[df_2024["year"] == j]["sfu"].values for j in jahre]
 labels_jahre = [f"{j}\n(n={len(d)})" for j, d in zip(jahre, daten_jahre)]
 
@@ -179,56 +171,48 @@ fig2.text(
 
 plt.savefig("sfu_gesamt_auswertung.png", bbox_inches="tight")
 plt.close(fig2)
-print("Beide Diagramme wurden erfolgreich erstellt!")
-
-# ==============================================================================
-# DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (GFZ Potsdam / Penticton)
-# ==============================================================================
-hist_rows = []
-
+# 2. GFZ-Daten einlesen (F10.7 seit 1947 + Ap-Index + Sonnenfleckenzahl SN)
+gfz_rows = []
 with open("gfz_since_1932.txt", "r", encoding="latin1") as f:
     for raw_line in f:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
         teile = line.split()
-        # Spalten im GFZ-Format: 0=YYYY, 1=MM, 2=DD, ..., 25=F10.7_obs, 26=F10.7_adj
         if len(teile) >= 27:
             y_str = teile.pop(0)
             m_str = teile.pop(0)
             d_str = teile.pop(0)
             if y_str.isdigit() and int(y_str) >= 1947:
-                # Nach 3x pop(0) liegt Spalte 26 (F10.7_adj) jetzt an Position 23
-                for _ in range(23):
+                for _ in range(20):
                     teile.pop(0)
-                val_str = teile.pop(0)
+                ap_str = teile.pop(0)
+                sn_str = teile.pop(0)
+                _ = teile.pop(0)
+                sfu_str = teile.pop(0)
                 try:
-                    sfu_val = float(val_str)
-                    if 50 < sfu_val < 600:
-                        hist_rows.append({
-                            "date": f"{y_str}-{m_str.zfill(2)}-{d_str.zfill(2)}",
-                            "sfu": sfu_val
-                        })
+                    gfz_rows.append({
+                        "date": f"{y_str}-{m_str.zfill(2)}-{d_str.zfill(2)}",
+                        "ap": float(ap_str),
+                        "sn": float(sn_str),
+                        "sfu": float(sfu_str)
+                    })
                 except ValueError:
                     pass
 
-print(f"GFZ-Langzeitdaten eingelesen: {len(hist_rows)} Tage ab 1947.")
+df_gfz = pd.DataFrame(gfz_rows)
+df_gfz["date"] = pd.to_datetime(df_gfz["date"], errors="coerce")
+df_gfz = df_gfz.dropna(subset=["date"])
 
-# Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
-df_wettzell_hist = df_daily[["date", "sfu"]].copy()
-df_wettzell_hist["date"] = df_wettzell_hist["date"].dt.strftime("%Y-%m-%d")
+# DIAGRAMM 3: Historische Sonnenzyklen seit 1947
+df_hist_sfu = df_gfz[(df_gfz["sfu"] > 50) & (df_gfz["sfu"] < 600)][["date", "sfu"]].copy()
+df_all_hist = pd.concat([df_hist_sfu, df_daily[["date", "sfu"]]], ignore_index=True)
 
-df_all_hist = pd.concat([pd.DataFrame(hist_rows), df_wettzell_hist], ignore_index=True)
-df_all_hist["date"] = pd.to_datetime(df_all_hist["date"], errors="coerce")
-df_all_hist = df_all_hist.dropna(subset=["date", "sfu"])
-
-# Tagesmittel und Glättung berechnen
 df_h_daily = df_all_hist.groupby("date", as_index=False)["sfu"].mean().sort_values("date").reset_index(drop=True)
 df_h_daily["ma81"] = df_h_daily["sfu"].rolling(window=81, min_periods=30, center=True).mean()
 df_h_daily["ma365"] = df_h_daily["sfu"].rolling(window=365, min_periods=150, center=True).mean()
 
 fig3, ax3 = plt.subplots(figsize=(13, 5.5), dpi=160)
-
 ax3.plot(df_h_daily["date"], df_h_daily["ma81"], color="#7fb3d5", linewidth=0.9, label="81-Tage-Mittel (F10.7A)")
 ax3.plot(df_h_daily["date"], df_h_daily["ma365"], color="#1f4e78", linewidth=2.0, label="365-Tage-Mittel (Zyklusverlauf)")
 
@@ -273,4 +257,151 @@ fig3.text(
 plt.tight_layout(rect=[0, 0.03, 1, 1])
 plt.savefig("sfu_zyklen_1947.png")
 plt.close(fig3)
-print("Historisches Zyklus-Diagramm erstellt!")
+
+# DIAGRAMM 4: Weltraumwetter der letzten 30 Tage (Sonnenflecken SN & Ap-Index)
+df_gfz_valid = df_gfz[(df_gfz["sn"] >= 0) & (df_gfz["ap"] >= 0)].sort_values("date")
+letztes_gfz = df_gfz_valid["date"].max()
+df_gfz_30 = df_gfz_valid[df_gfz_valid["date"] >= (letztes_gfz - pd.Timedelta(days=29))].copy()
+
+aktueller_sn = int(df_gfz_30["sn"].tail(1).mean())
+aktueller_ap = int(df_gfz_30["ap"].tail(1).mean())
+
+fig4, (ax_sn, ax_ap) = plt.subplots(2, 1, figsize=(11, 7), dpi=150, sharex=True)
+
+ax_sn.plot(df_gfz_30["date"], df_gfz_30["sn"], marker="o", color="#d95f02", linewidth=2, markersize=4.5)
+ax_sn.fill_between(df_gfz_30["date"], df_gfz_30["sn"], color="#d95f02", alpha=0.12)
+ax_sn.set_title(
+    f"Weltraumwetter (Letzte 30 Tage bis {letztes_gfz.strftime('%d.%m.%Y')}): Sonnenfleckenzahl (SN) & Geomagnetischer Ap-Index",
+    fontsize=12, fontweight="bold", pad=12
+)
+ax_sn.set_ylabel("Sonnenfleckenzahl [SN]", fontsize=10)
+ax_sn.grid(True, linestyle="--", alpha=0.4)
+ax_sn.spines["top"].set_visible(False)
+ax_sn.spines["right"].set_visible(False)
+
+ap_farben = ["#2ca02c" if v < 15 else ("#ff7f0e" if v < 30 else "#d62728") for v in df_gfz_30["ap"]]
+ax_ap.bar(df_gfz_30["date"], df_gfz_30["ap"], color=ap_farben, width=0.68)
+ax_ap.axhline(15, color="#ff7f0e", linestyle="--", linewidth=1, label="Unruhig (Ap ≥ 15 / Kp ≈ 3–4)")
+ax_ap.axhline(30, color="#d62728", linestyle="--", linewidth=1, label="Geomagnetischer Sturm (Ap ≥ 30 / Kp ≥ 5)")
+ax_ap.set_ylabel("Tages-Ap-Index", fontsize=10)
+ax_ap.set_xlabel("Datum (UTC)", fontsize=10)
+ax_ap.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m."))
+ax_ap.xaxis.set_major_locator(mdates.DayLocator(interval=3))
+plt.xticks(rotation=45)
+ax_ap.grid(axis="y", linestyle="--", alpha=0.4)
+ax_ap.spines["top"].set_visible(False)
+ax_ap.spines["right"].set_visible(False)
+ax_ap.legend(loc="upper right", fontsize=8.5, framealpha=0.9)
+
+fig4.text(
+    0.01, 0.01,
+    "Quelle: GFZ Helmholtz-Zentrum Potsdam (Kp / Ap & SILSO Sunspot Number SN)",
+    fontsize=8, color="#555555"
+)
+
+plt.tight_layout(rect=[0, 0.03, 1, 1])
+plt.savefig("weltraumwetter_30tage.png")
+plt.close(fig4)
+
+# 3. index.html mit Zeitstempel & Tageswerten erzeugen
+jetzt_de = datetime.now(ZoneInfo("Europe/Berlin")).strftime("%d.%m.%Y um %H:%M Uhr (%Z)")
+
+html_inhalt = f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar Flux &amp; Weltraumwetter – Observatorium Wettzell &amp; GFZ Potsdam</title>
+  <style>
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      max-width: 1120px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #222;
+      background-color: #f8f9fa;
+    }}
+    h1 {{
+      font-size: 1.65rem;
+      color: #1f4e78;
+      margin-bottom: 0.3rem;
+    }}
+    p.subtitle {{
+      color: #555;
+      margin-top: 0;
+      margin-bottom: 1.2rem;
+    }}
+    .status-bar {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      background: #eef4fa;
+      border-left: 4px solid #1f4e78;
+      padding: 0.9rem 1.2rem;
+      border-radius: 6px;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }}
+    .status-item {{
+      margin-right: 1.5rem;
+    }}
+    .card {{
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }}
+    .card img {{
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }}
+    footer {{
+      font-size: 0.85rem;
+      color: #666;
+      text-align: center;
+      margin-top: 2rem;
+    }}
+  </style>
+</head>
+<body>
+  <h1>Solarer Radiofluss F10.7 &amp; Weltraumwetter</h1>
+  <p class="subtitle">Automatisch aktualisierte Auswertung – Geodätisches Observatorium Wettzell (BKG) &amp; GFZ Potsdam</p>
+
+  <div class="status-bar">
+    <div class="status-item"><strong>Letzte Aktualisierung:</strong> {jetzt_de}</div>
+    <div class="status-item"><strong>Aktueller F10.7 ({letztes_datum.strftime('%d.%m.')}):</strong> {aktueller_sfu:.1f} sfu</div>
+    <div class="status-item"><strong>Sonnenflecken (SN):</strong> {aktueller_sn}</div>
+    <div class="status-item"><strong>Ap-Index:</strong> {aktueller_ap}</div>
+  </div>
+
+  <div class="card">
+    <img src="sfu_30tage.png" alt="Solar Flux F10.7 der letzten 30 Tage">
+  </div>
+
+  <div class="card">
+    <img src="weltraumwetter_30tage.png" alt="Sonnenfleckenzahl und Geomagnetischer Ap-Index der letzten 30 Tage">
+  </div>
+
+  <div class="card">
+    <img src="sfu_gesamt_auswertung.png" alt="Solar Flux F10.7 Gesamtauswertung seit 01.01.2024">
+  </div>
+
+  <div class="card">
+    <img src="sfu_zyklen_1947.png" alt="Historischer Solar Flux F10.7 seit 1947 – Sonnenzyklen 18 bis 25">
+  </div>
+
+  <footer>
+    Quellen: Bundesamt für Kartographie und Geodäsie (BKG Wettzell) &amp; GFZ Helmholtz-Zentrum Potsdam | Aktualisierung täglich via GitHub Actions
+  </footer>
+</body>
+</html>
+"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_inhalt)
+
+print("Alle 4 Diagramme und die aktualisierte index.html wurden erfolgreich erstellt!")
