@@ -1,3 +1,5 @@
+# with open("clt_f107_nf_final.txt", "r", encoding="latin1") as f:
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -11,10 +13,14 @@ with open("clt_f107_nf_final.txt", "r", encoding="latin1") as f:
             continue
         teile = line.split(":")
         if len(teile) >= 4:
+            datum = teile.pop(0).strip()   # 1. Spalte: date
+            stunde = teile.pop(0).strip()  # 2. Spalte: hour
+            _ = teile.pop(0)               # 3. Spalte: frequency (überspringen)
+            wert = teile.pop(0).strip()    # 4. Spalte: sfu
             zeilen.append({
-                "date": teile[0].strip(),
-                "hour": teile[1].strip(),
-                "sfu": teile[3].strip()
+                "date": datum,
+                "hour": stunde,
+                "sfu": wert
             })
 
 df = pd.DataFrame(zeilen)
