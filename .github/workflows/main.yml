@@ -18,7 +18,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: CSV-Datei herunterladen
-        run: curl -fSL "https://wesis.bkg.bund.de/clt_f107_nf_final.txt" -o clt_f107_nf_final.txt
+        run: |
+          curl -fSL "https://wesis.bkg.bund.de/clt_f107_nf_final.txt" -o clt_f107_nf_final.txt
+          curl -fSL "https://colorado.edu" -o penticton_1947.csv
 
       - name: Python einrichten
         uses: actions/setup-python@v5
@@ -39,3 +41,5 @@ jobs:
           enable_jekyll: false
           allow_empty_commit: true
           commit_message: "Update Solar Flux Diagramme"
+
+
