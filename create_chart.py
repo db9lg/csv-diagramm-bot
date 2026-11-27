@@ -423,6 +423,112 @@ for band_name, (st_tag, bg_tag, txt_tag), (st_nacht, bg_nacht, txt_nacht) in bae
       </div>
     </div>
     """
+# ==============================================================================
+# DIAGRAMM 5: Solar Flares / GOES Röntgenfluss der letzten 7 Tage
+# ==============================================================================
+flare_status_html = ""
+try:
+    with open("xrays_7d.json", "r", encoding="utf-8") as f:
+        xray_daten = json.load(f)
+
+    xray_rows = []
+    for eintrag in xray_daten:
+        # Wir nutzen das Standard-Röntgenband 0.1-0.8 nm (entscheidend für Flare-Klassen)
+        if eintrag.get("energy") == "0.1-0.8nm":
+            t_str = eintrag.get("time_tag")
+            flux = eintrag.get("flux")
+            if t_str and flux is not None and float(flux) > 0:
+                xray_rows.append({"time": t_str, "flux": float(flux)})
+
+    df_xray = pd.DataFrame(xray_rows)
+    if not df_xray.empty:
+        df_xray["time"] = pd.to_datetime(df_xray["time"], errors="coerce", utc=True).dt.tz_localize(None)
+        df_xray = df_xray.dropna(subset=["time", "flux"]).sort_values("time").reset_index(drop=True)
+
+        # Stärksten Flare der letzten 7 Tage ermitteln und in Klasse (A, B, C, M, X) umrechnen
+        max_idx = df_xray["flux"].idxmax()
+        max_flux = float(df_xray.loc[max_idx, "flux"])
+        max_time = df_xray.loc[max_idx, "time"]
+
+        def flux_zu_klasse(val):
+            if val >= 1e-4:
+                return f"X{val / 1e-4:.1f}"
+            elif val >= 1e-5:
+                return f"M{val / 1e-5:.1f}"
+            elif val >= 1e-6:
+                return f"C{val / 1e-6:.1f}"
+            elif val >= 1e-7:
+                return f"B{val / 1e-7:.1f}"
+            else:
+                return f"A{val / 1e-8:.1f}"
+
+        max_klasse = flux_zu_klasse(max_flux)
+        aktuell_flux = float(df_xray["flux"].tail(1).mean())
+        aktuelle_klasse = flux_zu_klasse(aktuell_flux)
+
+        flare_status_html = (
+            f'<div class="status-item"><strong>Röntgenfluss (GOES):</strong> {aktuelle_klasse} '
+            f'(7d-Max: <strong>{max_klasse}</strong> am {max_time.strftime("%d.%m. %H:%M")} UTC)</div>'
+        )
+
+        # Diagramm zeichnen (logarithmische Y-Achse)
+        fig5, ax5 = plt.subplots(figsize=(12, 5.2), dpi=150)
+
+        # Farbige Hintergrundbänder für die Flare-Klassen
+        ax5.axhspan(1e-8, 1e-6, color="#e8f5e9", alpha=0.45)   # A & B (ruhig)
+        ax5.axhspan(1e-6, 1e-5, color="#fffde7", alpha=0.65)   # C-Klasse
+        ax5.axhspan(1e-5, 1e-4, color="#fff3e0", alpha=0.75)   # M-Klasse (Blackout-Gefahr)
+        ax5.axhspan(1e-4, 1e-2, color="#ffebee", alpha=0.80)   # X-Klasse (starker Blackout)
+
+        ax5.plot(df_xray["time"], df_xray["flux"], color="#1f4e78", linewidth=1.2, label="GOES Röntgenfluss (0,1–0,8 nm)")
+
+        # Schwellenlinien beschriften
+        schwellen = [
+            (1e-6, "C1.0", "#7cb342"),
+            (1e-5, "M1.0 (Radio Blackout R1)", "#fb8c00"),
+            (1e-4, "X1.0 (Starker Blackout R3)", "#e53935"),
+        ]
+        for lvl, lbl, col in schwellen:
+            ax5.axhline(lvl, color=col, linestyle="--", linewidth=0.9)
+            ax5.text(df_xray["time"].min(), lvl * 1.15, f" {lbl}", color=col, fontsize=8, fontweight="bold", va="bottom")
+
+        # Maximum hervorheben
+        ax5.scatter(max_time, max_flux, color="#d62728", zorder=5, s=40)
+        ax5.annotate(
+            f"Max: {max_klasse}\n({max_time.strftime('%d.%m. %H:%M')} UTC)",
+            xy=(max_time, max_flux),
+            xytext=(12, -10), textcoords="offset points",
+            fontsize=8.5, fontweight="bold", color="#8b0000",
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#d62728", alpha=0.9),
+            arrowprops=dict(arrowstyle="->", color="#d62728", lw=0.8)
+        )
+
+        ax5.set_yscale("log")
+        ax5.set_ylim(1e-8, 2e-3)
+        ax5.set_title(
+            f"Solar Flares / Röntgenfluss der letzten 7 Tage (Stand: {df_xray['time'].max().strftime('%d.%m.%Y %H:%M')} UTC)",
+            fontsize=12.5, fontweight="bold", pad=12
+        )
+        ax5.set_ylabel("Röntgenfluss [W/m²]", fontsize=10)
+        ax5.set_xlabel("Datum / Uhrzeit (UTC)", fontsize=10)
+        ax5.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m."))
+        ax5.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+        ax5.grid(True, which="major", linestyle="--", alpha=0.4)
+        ax5.spines["top"].set_visible(False)
+        ax5.spines["right"].set_visible(False)
+
+        fig5.text(
+            0.01, 0.01,
+            "Quelle: NOAA Space Weather Prediction Center (SWPC) – GOES Primary X-Ray Flux (0.1–0.8 nm)",
+            fontsize=8, color="#555555"
+        )
+
+        plt.tight_layout(rect=[0, 0.03, 1, 1])
+        plt.savefig("solar_flares_7tage.png")
+        plt.close(fig5)
+        print(f"Solar-Flare-Diagramm erstellt (7d-Max: {max_klasse}).")
+except Exception as e:
+    print("Hinweis Solar Flares:", e)
 
 # ==============================================================================
 # 4. INDEX.HTML MIT ZEITSTEMPEL, TAGESWERTEN & TAG/NACHT-PROGNOSE GENERIEREN
@@ -518,6 +624,10 @@ html_inhalt = f"""<!DOCTYPE html>
 
   <div class="card">
     <img src="weltraumwetter_30tage.png" alt="Sonnenfleckenzahl und Geomagnetischer Ap-Index der letzten 30 Tage">
+  </div>
+
+  <div class="card">
+    <img src="solar_flares_7tage.png" alt="Solar Flares und GOES Röntgenfluss der letzten 7 Tage">
   </div>
 
   <div class="card">
