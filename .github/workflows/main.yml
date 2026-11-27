@@ -32,8 +32,10 @@ jobs:
           python create_chart.py
 
       # 4. Bild kurzzeitig als Artifact speichern, damit du es im Browser prüfen kannst
-      - name: Diagramm zur Vorschau bereitstellen
+      - name: Diagramme zur Vorschau bereitstellen
         uses: actions/upload-artifact@v4
         with:
-          name: sfu-diagramm
-          path: sfu_30tage.png
+          name: sfu-diagramme
+          path: |
+            sfu_30tage.png
+            sfu_gesamt_auswertung.png
