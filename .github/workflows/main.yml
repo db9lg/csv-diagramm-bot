@@ -23,7 +23,7 @@ jobs:
         run: |
           curl -fSL "https://wesis.bkg.bund.de/clt_f107_nf_final.txt" -o clt_f107_nf_final.txt
           curl -fSL "https://kp.gfz.de/app/files/Kp_ap_Ap_SN_F107_since_1932.txt" -o gfz_since_1932.txt
-          curl -fSL "https://prop.kc2g.com/ionosonden.json" -o ionosonden.json
+          curl -fSL "https://prop.kc2g.com/api/stations.json" -o ionosonden.json
 
       - name: Python einrichten
         uses: actions/setup-python@v5
