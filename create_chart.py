@@ -179,19 +179,26 @@ fig2.text(
 
 plt.savefig("sfu_gesamt_auswertung.png", bbox_inches="tight")
 plt.close(fig2)
+print("Beide Diagramme wurden erfolgreich erstellt!")
 
 # ==============================================================================
 # DIAGRAMM 3: Historische Sonnenzyklen seit 1947 (Ottawa / Penticton)
 # ==============================================================================
 import urllib.request
 
-# 1. Historische Tageswerte 1947 - 2018 von NOAA NCEI laden
-url_noaa = "https://noaa.gov"
 hist_rows = []
+
+# 1. Historische Tageswerte 1947 - 2018 von NOAA NCEI laden
+url_noaa = (
+    "https://noaa.gov"
+    "solar-features/solar-radio/noontime-flux/penticton/"
+    "penticton_adjusted/listings/"
+    "listing_drao_noontime-flux-adjusted_daily.txt"
+)
 
 try:
     req = urllib.request.Request(url_noaa, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    with urllib.request.urlopen(req, timeout=25) as resp:
         for raw_line in resp.read().decode("latin1").splitlines():
             parts = raw_line.strip().split()
             if len(parts) >= 4 and parts[0].isdigit() and len(parts[0]) == 4:
@@ -205,17 +212,22 @@ try:
 except Exception as e:
     print("Hinweis NOAA-Archiv:", e)
 
-# 2. Aktuelle Werte ab 2004 von Space Weather Canada (penticton_1947.txt) einlesen
+# 2. Aktuelle Werte ab 2004 von Space Weather Canada laden
+url_canada = (
+    "https://spaceweather.gc.ca"
+    "solar_flux_data/daily_flux_values/fluxtable.txt"
+)
+
 try:
-    with open("penticton_1947.txt", "r", encoding="latin1") as f:
-        for line in f:
+    req2 = urllib.request.Request(url_canada, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req2, timeout=25) as resp2:
+        for line in resp2.read().decode("latin1").splitlines():
             parts = line.strip().split()
-            # Format: YYYYMMDD HHMMSS julian carrington obs_flux adj_flux ursi_flux
             if len(parts) >= 6 and parts[0].isdigit() and len(parts[0]) == 8:
                 d_str = parts[0]
                 datum_fmt = f"{d_str[:4]}-{d_str[4:6]}-{d_str[6:8]}"
                 try:
-                    sfu_val = float(parts[5])  # adjusted flux
+                    sfu_val = float(parts[5])
                     if 50 < sfu_val < 600:
                         hist_rows.append({"date": datum_fmt, "sfu": sfu_val})
                 except ValueError:
@@ -223,7 +235,7 @@ try:
 except Exception as e:
     print("Hinweis SpaceWeather Canada:", e)
 
-# 3. Eigene Wettzell-Tageswerte (df_daily) als tagesaktuellste Daten mit anhängen
+# 3. Deine eigenen Wettzell-Tageswerte (df_daily) als aktuellste Daten anhängen
 df_wettzell_hist = df_daily[["date", "sfu"]].copy()
 df_wettzell_hist["date"] = df_wettzell_hist["date"].dt.strftime("%Y-%m-%d")
 
@@ -231,7 +243,9 @@ df_all_hist = pd.concat([pd.DataFrame(hist_rows), df_wettzell_hist], ignore_inde
 df_all_hist["date"] = pd.to_datetime(df_all_hist["date"], errors="coerce")
 df_all_hist = df_all_hist.dropna(subset=["date", "sfu"])
 
-# Tagesmittel bilden (Doppelungen an Überlappungsjahren sauber mitteln)
+print(f"Historische Gesamtdaten: {len(df_all_hist)} Einträge von {df_all_hist['date'].min()} bis {df_all_hist['date'].max()}")
+
+# Tagesmittel und Glättung berechnen
 df_h_daily = df_all_hist.groupby("date", as_index=False)["sfu"].mean().sort_values("date").reset_index(drop=True)
 df_h_daily["ma81"] = df_h_daily["sfu"].rolling(window=81, min_periods=30, center=True).mean()
 df_h_daily["ma365"] = df_h_daily["sfu"].rolling(window=365, min_periods=150, center=True).mean()
@@ -283,5 +297,3 @@ plt.tight_layout(rect=[0, 0.03, 1, 1])
 plt.savefig("sfu_zyklen_1947.png")
 plt.close(fig3)
 print("Historisches Zyklus-Diagramm erstellt!")
-
-print("Beide Diagramme wurden erfolgreich erstellt!")
